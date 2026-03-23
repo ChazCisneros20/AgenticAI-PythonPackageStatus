@@ -7,7 +7,7 @@ example.capstone()
 
 import requests 
 import json
-URL = r"https://releasetrain.io/api/reddit/query/positive"
+URL = ""
 response = requests.get(url=URL)
 
 if response.status_code == 200:

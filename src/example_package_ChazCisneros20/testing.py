@@ -1,13 +1,7 @@
 from example_package_ChazCisneros20 import example
 
-#Test of print.
-#ADDED: different for now.
-example.capstone()
-
-
 import requests 
 import json
-#CHECK TXT FILE FOR LINK
 URL = ''
 response = requests.get(url=URL)
 

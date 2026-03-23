@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling >=1.26"]
+build-backend = "hatchling.build"
+[project]
+name = "example_package_ChazCisneros20"
+version = "0.0.3"
+authors = [{name = "Ethan Chaz Cisneros", email = "e_cisneros3@u.pacific.edu"},]
+description = "Capstone Test Python3 Package"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent", 
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/ChazCisneros20/PythonPackageBuilder"
+Issues = "https://github.com/ChazCisneros20/PythonPackageBuilder"

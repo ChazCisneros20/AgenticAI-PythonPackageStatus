@@ -1,6 +1,5 @@
 import requests
 import json
-#Ask professor 
 
 class example:
     @staticmethod
@@ -16,7 +15,9 @@ class example:
     def get_request(URL):
         response = requests.get(url=URL)
         print(response)
+    #FIXME:ADD .help() functio AND `help` command for CLI
 
+    #===MAIN CAPSTONE FUNCTION; ANY UPDATES TODAY ==============================
     @staticmethod
     def package_update(URL):
         response = requests.get(url=URL)

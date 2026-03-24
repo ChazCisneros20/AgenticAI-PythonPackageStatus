@@ -2,8 +2,8 @@
 requires = ["hatchling >=1.26"]
 build-backend = "hatchling.build"
 [project]
-name = "example_package_ChazCisneros20"
-version = "0.0.3"
+name = "packageupdater"
+version = "0.0.4"
 authors = [{name = "Ethan Chaz Cisneros", email = "e_cisneros3@u.pacific.edu"},]
 description = "Capstone Test Python3 Package"
 readme = "README.md"

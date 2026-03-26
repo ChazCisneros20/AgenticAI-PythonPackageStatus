@@ -1,0 +1,9 @@
+LICENSE
+README.md
+pyproject.toml
+src/PackageUpdateSearch/__init__.py
+src/PackageUpdateSearch/example.py
+src/PackageUpdateSearch.egg-info/PKG-INFO
+src/PackageUpdateSearch.egg-info/SOURCES.txt
+src/PackageUpdateSearch.egg-info/dependency_links.txt
+src/PackageUpdateSearch.egg-info/top_level.txt

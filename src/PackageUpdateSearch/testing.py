@@ -1,5 +1,3 @@
-# from PackageUpdater import example
-
 import requests 
 import json
 URL = ''

@@ -4,4 +4,4 @@
 
 from example import example
 
-print(example.package_update(URL=r"https://releasetrain.io/api/reddit/query/positive", ascending=10))
+print(example.package_update(URL=r"", ascending=10))

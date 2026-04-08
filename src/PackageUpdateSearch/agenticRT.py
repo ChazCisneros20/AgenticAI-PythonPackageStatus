@@ -3,6 +3,8 @@ from ollama import OllamaError
 import requests
 import json
 
+#FIX: Replace hard coded routing with agent that dynamically handles functions ("tools"). 
+#Focus on the __init__ function. 
 class AgentUpdate:
     @staticmethod
     def package_update_agent(
@@ -73,11 +75,12 @@ class AgentUpdate:
                     'content' : reddit_posts
                 }
             ]
-            agent_response = chat(model='gemma3:latest', messages=messages)
+            agent_response = chat(model='gemma3:latest', messages=messages, stream=True)
             print(agent_response['message']['content'])
 
         return 'Currently unable to search updates <Response code not 200:> ' + str(response.status_code)    
 
 #Fix: Instanciate the agent and let it dynamically handle functions as "tools"
 if __name__ == "__main__":
+    agent 
     print("")

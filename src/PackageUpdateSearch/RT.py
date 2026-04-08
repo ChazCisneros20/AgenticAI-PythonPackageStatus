@@ -5,24 +5,10 @@ import requests
 import json
 
 #Testing of python package functions. 
-class example:
-    @staticmethod
-    def capstone():
-        print("Hello World\n")
-        print("This is the start of my Senior Capstone project !\n")
-
-    #Follow link: https://releasetrain.io/docs/ for references.
-
-    @staticmethod
-    def get_request(URL):
-        response = requests.get(url=URL)
-        print(response)
-    #FIXME:ADD .help() function AND `help` command for CLI
-
+class Update:
 #======MAIN CAPSTONE FUNCTION; ANY UPDATES TODAY ==============================
 #==============================================================================
 #NOTE: Does not include an 'ask' function to speak to agent about any updates. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (reference in app.py))
-
 #FIX: Change URL to the actual URL of the API endpoint. (no parameters for endpoint)
 #FIX: Add error handling for non-200 response code.
     @staticmethod

@@ -2,12 +2,12 @@ import argparse
 import os
 import sys
 
-from example import example
+from PackageUpdateSearch.RT import RT
 
 #CREATES parser OBJECT. 
 def create_parser():
     parser = argparse.ArgumentParser(
-        description='CLI wrapper for PackageUpdateSearch example utilities.',
+        description='CLI wrapper for PackageUpdateSearch RT utilities.',
         add_help=False
     )
     subparsers = parser.add_subparsers(dest='command', required=False)
@@ -61,7 +61,7 @@ def handle_command(parser, command_line):
         #CLI if typed package-update. 
         #If need new attribute, use the `parser_update.add_argument(...)``
         if args.command == 'package-update':
-            result = example.package_update(
+            result = RT.package_update(
                 #These dot accessed data members/attributes come from `parser_update.add_argument('--q' ...` in `create_parser()`.<<<
                 q=args.q,
                 minScore=args.min_score,
@@ -74,10 +74,10 @@ def handle_command(parser, command_line):
             print(result)
 
         elif args.command == 'get-request':
-            example.get_request(args.url)
+            RT.get_request(args.url)
 
         elif args.command == 'capstone':
-            example.capstone()
+            RT.capstone()
 
         elif args.command == 'help':
             print_help()
@@ -105,7 +105,7 @@ def print_help():
     print("  exit            - Exit the CLI\n")
 
 #====MAIN CLI APPLICATION LOOP ===================================================
-#NOTE: Does not include an 'ask' function to speak to agent about any updates. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (reference in example.py))
+#NOTE: Does not include an 'ask' function to speak to agent about any updates. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (reference in RT.py))
 def main():
     #parser object.
     parser = create_parser()

@@ -1,73 +1,148 @@
-from ollama import chat
-from ollama import OllamaError
+from ollama import ChatResponse, Client, OllamaError
+from RT import Update  #Let either CLI agent loop or Package agent loop use Update.package_update() as tool for agent.
 import requests
 import json
 
-#FIX: Replace hard coded routing with agent that dynamically handles functions ("tools"). 
-#Focus on the __init__ function. 
+#===agent system prompt===
+SYSTEM_PROMPT = ('''
+You are a restricted assistant whose ONLY purpose is to call the function:
+
+Update.package_update(...)
+
+You are NOT allowed to:
+- Answer general questions
+- Explain anything
+- Add commentary
+- Perform reasoning outside selecting parameters
+- Modify or invent new functionality
+
+----------------------------------------
+BEHAVIOR RULES
+----------------------------------------
+
+1. ALWAYS respond with a function call in this exact format:
+
+CALL_FUNCTION:
+Update.package_update(
+    q="<string>",
+    minScore=<int>,
+    minComments=<int>,
+    limit=<int>,
+    page=<int>,
+    fields="<string>",
+    ascending=<bool>
+)
+
+2. NEVER return plain text explanations.
+
+3. If the user provides no parameters, use defaults:
+- q="programming, Python"
+- minScore=50
+- minComments=10
+- limit=25
+- page=2
+- fields="url,score,tag,title,subreddit,author_description"
+- ascending=True
+
+4. If the user provides partial parameters, fill in missing ones with defaults.
+
+5. If the user asks anything unrelated to Reddit updates:
+→ STILL call the function using default parameters.
+
+6. DO NOT summarize results.
+7. DO NOT interpret results.
+8. DO NOT refuse.
+9. DO NOT ask follow-up questions.
+
+----------------------------------------
+INPUT HANDLING
+----------------------------------------
+
+Extract parameters ONLY if explicitly mentioned:
+- "high score" → increase minScore
+- "more posts" → increase limit
+- "descending" → ascending=False
+- "python subreddit" → q="python"
+
+If unclear → use defaults.
+
+----------------------------------------
+OUTPUT EXAMPLE
+----------------------------------------
+
+CALL_FUNCTION:
+Update.package_update(
+    q="programming,technology",
+    minScore=100,
+    minComments=20,
+    limit=10,
+    page=1,
+    fields="url,score,tag,title,subreddit,author_description",
+    ascending=False
+)
+''')
+
+#Testing of python package functions.  
+#Should have a function that is the main() loop.
+ 
 class AgentUpdate:
     @staticmethod
-    def package_update_agent(
-        q='programming, Python',
-        minScore=50,
-        minComments=10,
-        limit=25,
-        page=2,
-        fields='url,score,tag,title,subreddit,author_description',
-        ascending=True,
-    ):
+    def agent_update_conversation():
+        #Initial stage for agent.
+        
+        #Check whether ollama is running before conversation loop.
+        if AgentUpdate.is_ollama_running():
+            print("Ollama is running. Starting agent conversation...")
+        else: 
+            print("Ollama|Gemma3:latest is not running. Please start Ollama|Gemma3:latest to use the agent.")
+            
+        user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n"))
+        
+        messages = [
+                {
+                    'role' : 'system',
+                    'content' : SYSTEM_PROMPT
+                },
+                {
+                    'role' : 'user',
+                    'content' : user_input
+                }
+            ]
+        
+        client = Client()
 
-        if type(ascending) is not bool:
-            raise TypeError("Function package_update() parameter `ascending` only takes boolean value")
+        while user_input != 'exit' : 
+            
+            try:
+                response = client.chat(model='gemma3:latest', messages=messages, stream=True, think=True)
+                print(response['message']['content'])
+            except OllamaError as e:
+                print(f"Error during agent conversation: {e}")
 
-        if type(q) is not str:
-            raise TypeError("Function package_update() parameter `q` must be a string")
+            user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n"))
 
-        if type(fields) is not str:
-            raise TypeError("Function package_update() parameter `fields` must be a comma-separated string")
 
-        base_url = 'https://releasetrain.io/api/reddit/by-subreddit'
-        #Adds paramters to the URL for the GET request.
-        params = {
-            'q': q,
-            'minScore': minScore,
-            'minComments': minComments,
-            'limit': limit,
-            'page': page,
-            'fields': fields,
-        }
+    #Returns True/False if ollama is running. Used to check if agent can run or not. === Useful for CLI agent to check before starting loop.
+    @staticmethod
+    def is_ollama_running():
+        try:
+            res = requests.get("http://localhost:11434/api/tags", timeout=2)
+            return res.status_code == 200
+        except requests.exceptions.RequestException:
+            return False
 
-        response = requests.get(url=base_url, params=params)
+#Fix: Instanciate the agent and let it dynamically handle functions as "tools"
+if __name__ == "__main__":
+    main()
 
-        if response.status_code == 200:
-            response_data = response.json()
-            response_data = response_data.get('data', [])
-            response_data = sorted(response_data, key=lambda item: item.get('score', 0), reverse=not ascending)
-
-            reddit_posts = ''
-            for item in response_data:
-                try:
-                    reddit_posts += (
-                        '[URL: ] ' + str(item.get('url', '')) + '\n' +
-                        '[SCORE: ] ' + str(item.get('score', '')) + '\n' +
-                        '[TAG(s): ] ' + str(item.get('tag', '')) + '\n' +
-                        '[TITLE: ] ' + str(item.get('title', '')) + '\n' +
-                        '[SUBREEDDIT: ] ' + str(item.get('subreddit', '')) + '\n'
-                    )
-                    reddit_posts += '[AUTHOR_DESCRIPTION: ] ' + str(item.get('author_description', '')) + '\n\n'
-                except Exception:
-                    reddit_posts += '\n'
-                    continue
-
-            #pass `reddt_posts` string to agent to speak to user about updates. 
-            messages = [
+def main():
+    #Initial stage for agent. 
+    #Explain it's role and provide it with the necessary information to perform its task.
+    messages = [
                 {
                     'role' : 'system',
                     'content' : ('''
-                    You are a helpful package update assistant that provides users with the latest updates from Reddit based on their specified criteria. 
-                    You will receive a list of Reddit posts formatted as follows: [URL: ] [SCORE: ] [TAG(s): ] [TITLE: ] [SUBREEDDIT: ] [AUTHOR_DESCRIPTION: ]. 
-                    Your task is to summarize the key information from these posts and present it to the user in a clear and concise manner. 
-                    Focus on highlighting the most relevant updates, trends, or insights that may be of interest to the user based on the provided data.
+                    You are a helpful 
                     ''')
                 },
                 {
@@ -75,12 +150,48 @@ class AgentUpdate:
                     'content' : reddit_posts
                 }
             ]
-            agent_response = chat(model='gemma3:latest', messages=messages, stream=True)
-            print(agent_response['message']['content'])
+    client = Client()
 
-        return 'Currently unable to search updates <Response code not 200:> ' + str(response.status_code)    
+    response = client.chat(model='gemma3:latest', messages=messages, stream=True, think=True)
+    print(agent_response['message']['content'])
 
-#Fix: Instanciate the agent and let it dynamically handle functions as "tools"
-if __name__ == "__main__":
-    agent 
-    print("")
+    #tools=[add_two_numbers, subtract_two_numbers_tool],
+    #or
+#     response: ChatResponse = chat(
+#   'llama3.1',
+#   messages=messages,
+#   tools=[add_two_numbers, subtract_two_numbers_tool],
+# )
+
+# while True:
+#     response = chat(
+#         model="llama3.1",
+#         messages=messages,
+#         tools=[Update.package_update],
+#     )
+
+#     message = response.message
+#     messages.append(message)
+
+#     # 🔧 If tool is called
+#     if message.tool_calls:
+#         for tool in message.tool_calls:
+#             function_name = tool.function.name
+#             function_args = tool.function.arguments
+
+#             if function_name == "package_update":
+#                 result = Update.package_update(**function_args)
+
+#                 # 👇 THIS is the magic step
+#                 messages.append({
+#                     "role": "tool",
+#                     "tool_name": function_name,
+#                     "content": str(result),  # raw data goes here
+#                 })
+
+#         # loop continues → model now summarizes
+#         continue
+
+#     # ✅ FINAL ANSWER (already summarized by model)
+#     print("\nFinal Answer:\n", message.content)
+#     break

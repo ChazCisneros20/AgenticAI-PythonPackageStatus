@@ -3,6 +3,9 @@ from RT import Update  #Let either CLI agent loop or Package agent loop use Upda
 import requests
 import json
 
+#FIX: Not handling 2 parameters for q=, only showing one subreddit in the results.
+#FIX: Agent is looping but not taking any actions or tool calling. Only can occur once. CHECK SYSTEM_PROMPT for instructions to agent.
+
 #===TOOL REGISTRY=== (needed incase the LLM calls functions we DO NOT want to call. Is a security mesure.)
 TOOL_REGISTRY = {
     "package_update": Update.package_update

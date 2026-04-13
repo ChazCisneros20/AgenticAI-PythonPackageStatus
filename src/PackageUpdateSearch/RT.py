@@ -21,6 +21,30 @@ class Update:
         fields='url,score,tag,title,subreddit,author_description',
         ascending=True,
     ):
+        """
+        Fetch and format Reddit posts from the ReleaseTrain by-subreddit endpoint.
+        
+        Args: 
+            q (str): comma-separated subreddit names to query, e.g. 'programming,technology'.
+            minScore (int): posts with minimum reddit score.
+            minComments (int): minimum number of comments on the reddit post.
+            limit (int): maximum number of posts returned by the API.
+            page (int): API page number for pagination.
+            fields (str): comma-separated fields to return from the API.
+            ascending (bool): sort order for score values; True returns ascending order.
+        
+        Returns:
+            Multiple Reddit posts formatted as a string, each post includes:
+            [URL: ] 
+            [SCORE: ] 
+            [TAG(s): ] 
+            [TITLE: ] 
+            [SUBREEDDIT: ] 
+
+            Some posts may also include:
+            [AUTHOR_DESCRIPTION: ]
+        """
+
 
         if type(ascending) is not bool:
             raise TypeError("Function package_update() parameter `ascending` only takes boolean value")

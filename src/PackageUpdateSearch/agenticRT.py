@@ -3,6 +3,11 @@ from RT import Update  #Let either CLI agent loop or Package agent loop use Upda
 import requests
 import json
 
+#===TOOL REGISTRY=== (needed incase the LLM calls functions we DO NOT want to call. Is a security mesure.)
+TOOL_REGISTRY = {
+    "package_update": Update.package_update
+}
+
 #===agent system prompt===
 SYSTEM_PROMPT = ('''
 You are a restricted assistant whose ONLY purpose is to call the function:
@@ -93,33 +98,72 @@ class AgentUpdate:
         #Check whether ollama is running before conversation loop.
         if AgentUpdate.is_ollama_running():
             print("Ollama is running. Starting agent conversation...")
+            #Initialize client application (includes agent). <<<<<<<
+            client = Client()
+            messages = [
+                    {
+                        'role' : 'system',
+                        'content' : SYSTEM_PROMPT
+                    },
+                    {
+                        'role' : 'user',
+                        'content' : user_input
+                    }
+                ]
+            #Finish initialization.<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            user_input = str(input("Ask the agent about any updates on Reddit related to programming or Python. Type 'exit' to quit.\n"))
+            while user_input != 'exit' : 
+                try:
+                    response = client.chat(
+                        model='gemma3:latest', 
+                        messages=messages, 
+                        tools=[Update.package_update],
+                        stream=True, 
+                        think=True
+                    ) 
+
+                    #NOTES:message follows the format of {'role': 'assistant', 'content': '...', 'tool_calls': [...]} even the returned content from the tool is in the same format. 
+                    #NOTES:Hence we can append the returned content from the tool call to the messages list and it will be processed by the model in the next loop iteration.
+                    message = response.message
+                    
+                    message.append(message) 
+
+                    #NOTES:The ollama agent will NOT run functions, but supply a list in it's dictionary format ['tool_calls'] which includes the functions it WANTS to call. 
+                    #NOTES:Therefore, we can run the functions ourselves. STILL acts as a dynamic agent!!!
+                    #NOTES:`tool_calls` has the format of [{'function': {'name': 'package_update', 'arguments': {...}}}, ...] 
+                    #NOTES:We need to extract the function NAME, extract its ARGUMENTS, and RUN. 
+                    #NOTES:Extract arguments for function use with `package_update(**kwargs)` == `package_update(q=5, minScore=10, etc.)`
+                    if message.tool_calls:
+                        for tool in message.tool_calls:
+                            function_name = tool.function.name
+                            function_args = tool.function.arguments
+
+                            if function_name == "package_update":
+                                result = Update.package_update(**function_args)
+
+                                #This is the magic step where we append the raw data returned from the tool call to the messages list. The model will then summarize this raw data in the next loop iteration.
+                                messages.append({
+                                    "role": "tool",
+                                    "tool_name": function_name,
+                                    "content": str(result),  # raw data goes here
+                                })
+                        continue
+                        print(response.message.content)
+                except OllamaError as e:
+                    print(f"Error during agent conversation: {e}")
+                    continue
+                    #FIX: >>"Python functions NEED to follow Google style docstrings to be CONVERTED -> to an Ollama TOOL." 
+                    #REPLACE print(response['message']['content']) -> print(response.message.content) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<       
+                except OllamaError as e:
+                    print(f"Error during agent conversation: {e}")
+
+                user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n"))
         else: 
             print("Ollama|Gemma3:latest is not running. Please start Ollama|Gemma3:latest to use the agent.")
+            exit(1)
             
-        user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n"))
         
-        messages = [
-                {
-                    'role' : 'system',
-                    'content' : SYSTEM_PROMPT
-                },
-                {
-                    'role' : 'user',
-                    'content' : user_input
-                }
-            ]
-        
-        client = Client()
-
-        while user_input != 'exit' : 
-            
-            try:
-                response = client.chat(model='gemma3:latest', messages=messages, stream=True, think=True)
-                print(response['message']['content'])
-            except OllamaError as e:
-                print(f"Error during agent conversation: {e}")
-
-            user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n"))
 
 
     #Returns True/False if ollama is running. Used to check if agent can run or not. === Useful for CLI agent to check before starting loop.
@@ -141,9 +185,7 @@ def main():
     messages = [
                 {
                     'role' : 'system',
-                    'content' : ('''
-                    You are a helpful 
-                    ''')
+                    'content' : SYSTEM_PROMPT
                 },
                 {
                     'role' : 'user',
@@ -155,43 +197,5 @@ def main():
     response = client.chat(model='gemma3:latest', messages=messages, stream=True, think=True)
     print(agent_response['message']['content'])
 
-    #tools=[add_two_numbers, subtract_two_numbers_tool],
-    #or
-#     response: ChatResponse = chat(
-#   'llama3.1',
-#   messages=messages,
-#   tools=[add_two_numbers, subtract_two_numbers_tool],
-# )
 
-# while True:
-#     response = chat(
-#         model="llama3.1",
-#         messages=messages,
-#         tools=[Update.package_update],
-#     )
 
-#     message = response.message
-#     messages.append(message)
-
-#     # 🔧 If tool is called
-#     if message.tool_calls:
-#         for tool in message.tool_calls:
-#             function_name = tool.function.name
-#             function_args = tool.function.arguments
-
-#             if function_name == "package_update":
-#                 result = Update.package_update(**function_args)
-
-#                 # 👇 THIS is the magic step
-#                 messages.append({
-#                     "role": "tool",
-#                     "tool_name": function_name,
-#                     "content": str(result),  # raw data goes here
-#                 })
-
-#         # loop continues → model now summarizes
-#         continue
-
-#     # ✅ FINAL ANSWER (already summarized by model)
-#     print("\nFinal Answer:\n", message.content)
-#     break

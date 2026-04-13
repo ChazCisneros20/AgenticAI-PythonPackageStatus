@@ -13,13 +13,13 @@ class Update:
 #FIX: Add error handling for non-200 response code.
     @staticmethod
     def package_update(
-        q='programming, Python',
-        minScore=50,
-        minComments=10,
-        limit=25,
-        page=2,
-        fields='url,score,tag,title,subreddit,author_description',
-        ascending=True,
+        q : str ='programming, Python',
+        minScore : int =50,
+        minComments : int =10,
+        limit : int =25,
+        page : int =2,
+        fields : str ='url,score,tag,title,subreddit,author_description',
+        ascending : int = 1,
     ):
         """
         Fetch and format Reddit posts from the ReleaseTrain by-subreddit endpoint.
@@ -31,7 +31,7 @@ class Update:
             limit (int): maximum number of posts returned by the API.
             page (int): API page number for pagination.
             fields (str): comma-separated fields to return from the API.
-            ascending (bool): sort order for score values; True returns ascending order.
+            ascending (int): sort order for score values; 1 returns ascending order. 0 returns descending order.
         
         Returns:
             Multiple Reddit posts formatted as a string, each post includes:
@@ -45,7 +45,11 @@ class Update:
             [AUTHOR_DESCRIPTION: ]
         """
 
+        ascending = int(ascending)
+        if ascending not in (0, 1):
+            raise ValueError("ascending must be 0 or 1")
 
+        ascending = bool(ascending)
         if type(ascending) is not bool:
             raise TypeError("Function package_update() parameter `ascending` only takes boolean value")
 

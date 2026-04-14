@@ -3,8 +3,9 @@ from RT import Update  #Let either CLI agent loop or Package agent loop use Upda
 import requests
 import json
 
-#FIX: Not handling 2 parameters for q=, only showing one subreddit in the results.
-#FIX: Agent is looping but not taking any actions or tool calling. Only can occur once. CHECK SYSTEM_PROMPT for instructions to agent.
+#LARGE FIX: Not handling 2 parameters for q=, only showing one subreddit in the results.
+#LARGE FIX: Agent is looping but not taking any actions or tool calling. Only can occur once. CHECK SYSTEM_PROMPT for instructions to agent.
+#LARGE FIX: Agent Summary Mode should provide links to key reddit posts
 
 #===TOOL REGISTRY=== (needed incase the LLM calls functions we DO NOT want to call. Is a security mesure.)
 TOOL_REGISTRY = {
@@ -72,6 +73,7 @@ If a TOOL RESULT is present in the conversation (output from Update.package_upda
 2. Instead:
 - Summarize the tool result clearly and concisely
 - Highlight key posts, trends, or important information
+- End by listing URLs of the most relevant Reddit posts from the results for the user to explore further AND verify.
 - Keep it structured and readable
 
 3. You are now allowed to:
@@ -117,14 +119,25 @@ CALL_FUNCTION: Update.package_update(...)
 
 → You respond:
 "Here are the key highlights from the results: ..."
+                 
+User → "Now show me Java posts"
+
+→ CALL_FUNCTION again (NEW CYCLE)
+
+(System returns tool result)
+
+→ Summarize again
+
+(repeats indefinitely) 
 ''')
 
 #Testing of python package functions.  
 #Should have a function that is the main() loop.
  
+
 class AgentUpdate:
     @staticmethod
-    def agent_update_conversation():
+    def agent_update_conversation(SYSTEM_PROMPT=SYSTEM_PROMPT, TOOL_REGISTRY=TOOL_REGISTRY):
         #Initial stage for agent.
         
         #Check whether ollama is running before conversation loop.
@@ -136,11 +149,11 @@ class AgentUpdate:
         
         print("Ollama is running. Starting agent conversation...")
 
-        #Initialize client application (includes agent). <<<<<<<
+        #Initialize client application (includes agent). <<<<<<<<<<
 
         
 
-        user_input = str(input("Ask the agent about any updates on Reddit related to programming or Python. Type 'exit' to quit.\n"))
+        user_input = str(input("Ask the agent about any updates on Reddit related to programming or Python. Type 'exit' to quit.\n>"))
 
         client = Client()
         messages = [
@@ -203,10 +216,13 @@ class AgentUpdate:
                 return
                 #FIX: >>"Python functions NEED to follow Google style docstrings to be CONVERTED -> to an Ollama TOOL." 
                 #REPLACE print(response['message']['content']) -> print(response.message.content) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<       
-            user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n"))
+            user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n>"))
     
         print("Exiting agent conversation.")
-            
+
+#Example:
+#   `from PackageUpdateSearch.agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate` in app.py to use the agent as a python package function. 
+#   Then call `AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)` to start the agent conversation loop. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         
 
 

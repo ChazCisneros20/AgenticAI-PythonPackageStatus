@@ -2,7 +2,8 @@ import argparse
 import os
 import sys
 
-from PackageUpdateSearch.RT import RT
+import RT
+from agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate 
 
 #CREATES parser OBJECT. 
 def create_parser():
@@ -38,7 +39,7 @@ def create_parser():
     parser_get.add_argument('url', help='The full URL to request.')
 
     subparsers.add_parser('capstone', help='Print the capstone project greeting message.')
-    
+    subparsers.add_parser('agent-update', help='Start an agent conversation about Reddit updates.')
     subparsers.add_parser('help', help='Show available commands.')
     subparsers.add_parser('exit', help='Exit the CLI.')
 
@@ -61,7 +62,7 @@ def handle_command(parser, command_line):
         #CLI if typed package-update. 
         #If need new attribute, use the `parser_update.add_argument(...)``
         if args.command == 'package-update':
-            result = RT.package_update(
+            result = RT.Update.package_update(
                 #These dot accessed data members/attributes come from `parser_update.add_argument('--q' ...` in `create_parser()`.<<<
                 q=args.q,
                 minScore=args.min_score,
@@ -81,6 +82,14 @@ def handle_command(parser, command_line):
 
         elif args.command == 'help':
             print_help()
+
+        elif args.command == 'agent-update':
+            try:
+                AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)
+                print("Agent conversation ended.")
+                print_help()
+            except KeyboardInterrupt:
+                print("\nExiting agent mode...")
 
         elif args.command == 'exit':
             print("Goodbye!")
@@ -102,6 +111,7 @@ def print_help():
     print("  get-request     - Send a GET request to a URL")
     print("  capstone        - Print the capstone greeting")
     print("  help            - Show this help message")
+    print("  agent-update    - Start an agent conversation about Reddit updates") #FIX: Add this to help menu. <<<
     print("  exit            - Exit the CLI\n")
 
 #====MAIN CLI APPLICATION LOOP ===================================================

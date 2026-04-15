@@ -103,3 +103,4 @@ Available methods:
 - The CLI is a thin wrapper around `example.py`.
 - `example.package_update()` returns a formatted string of Reddit posts.
 - `example.get_request()` prints the raw `requests.Response` object.
+

@@ -1,5 +1,5 @@
-from ollama import ChatResponse, Client #REMOVED OllamaError 
-from RT import Update  #Let either CLI agent loop or Package agent loop use Update.package_update() as tool for agent.
+from ollama import ChatResponse, Client 
+from RT import Update 
 import requests
 import json
 
@@ -136,13 +136,41 @@ User → "Now show me Java posts"
  
 
 class AgentUpdate:
+    """"
+    Agent that can have a conversation with the user about updates on Reddit related to programming and Python.
+
+    It operates in two modes:
+    1. TOOL CALLING MODE: When no tool result is present, it will call the function Update.package_update(...) with parameters extracted from user input or defaults.
+    2. SUMMARIZATION MODE: When a tool result is present, it will summarize the results and provide key highlights and URLs.
+
+    Example:
+    >>> from PackageUpdateSearch.agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate
+    >>> AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)
+    >>> from PackageUpdateSearch.agenticRT import is_ollama_running
+    >>> print(is_ollama_running())
+    """
     @staticmethod
     def agent_update_conversation(SYSTEM_PROMPT=SYSTEM_PROMPT, TOOL_REGISTRY=TOOL_REGISTRY):
+        """"
+        Agent that can have a conversation with the user about updates on Reddit related to programming and Python.
+
+        It operates in two modes:
+        1. TOOL CALLING MODE: When no tool result is present, it will call the function Update.package_update(...) with parameters extracted from user input or defaults.
+        2. SUMMARIZATION MODE: When a tool result is present, it will summarize the results and provide key highlights and URLs.
+
+        Args:
+            SYSTEM_PROMPT (str): The system prompt that defines the agent's behavior and instructions.
+            TOOL_REGISTRY (dict): A dictionary mapping function names to actual Python function references that the agent is allowed to call.
+
+        Example:
+            >>> from PackageUpdateSearch.agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate
+            >>> AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)
+        """
         #Initial stage for agent.
         
         #Check whether ollama is running before conversation loop.
         if not AgentUpdate.is_ollama_running():
-            print("Ollama is not running.")
+            print("\nOllama is not running")
             print("Please start it by running: ollama serve")
             print("Make sure gemma3 is downloaded: ollama pull gemma3")
             return
@@ -150,8 +178,6 @@ class AgentUpdate:
         print("Ollama is running. Starting agent conversation...")
 
         #Initialize client application (includes agent). <<<<<<<<<<
-
-        
 
         user_input = str(input("Ask the agent about any updates on Reddit related to programming or Python. Type 'exit' to quit.\n>"))
 
@@ -229,6 +255,17 @@ class AgentUpdate:
     #Returns True/False if ollama is running. Used to check if agent can run or not. === Useful for CLI agent to check before starting loop.
     @staticmethod
     def is_ollama_running():
+        """"
+        Function that checks if the Ollama server is running by sending a GET request to the /api/tags endpoint.
+
+        Returns:
+            bool: True if the Ollama server is running (response code 200), False otherwise.
+
+        Example:
+        >>> from PackageUpdateSearch.agenticRT import is_ollama_running
+        >>> print(is_ollama_running())
+        """
+        
         try:
             res = requests.get("http://localhost:11434/api/tags", timeout=2)
             return res.status_code == 200

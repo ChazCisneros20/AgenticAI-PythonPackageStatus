@@ -1,16 +1,10 @@
-#Upload to github this src into prof's src.
-#Upload
-
 import requests
 import json
 
-#Testing of python package functions. 
 class Update:
 #======MAIN CAPSTONE FUNCTION; ANY UPDATES TODAY ==============================
-#==============================================================================
+
 #NOTE: Does not include an 'ask' function to speak to agent about any updates. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (reference in app.py))
-#FIX: Change URL to the actual URL of the API endpoint. (no parameters for endpoint)
-#FIX: Add error handling for non-200 response code.
     @staticmethod
     def package_update(
         q : str ='programming, Python',
@@ -43,6 +37,17 @@ class Update:
 
             Some posts may also include:
             [AUTHOR_DESCRIPTION: ]
+
+        Example:
+            >>> example.package_update(
+                >>> q='programming,technology',
+                >>> minScore=50,
+                >>> minComments=10,
+                >>> limit=25,
+                >>> page=2,
+                >>> fields='url,score,tag,title,subreddit,author_description',
+                >>> ascending=False,
+            )
         """
 
         ascending = int(ascending)
@@ -95,11 +100,21 @@ class Update:
             return reddit_posts
 
         return 'Currently unable to search updates <Response code not 200:> ' + str(response.status_code)
-    #Make something similar to "python --help" as a CLI help such as '-v' for version.. 
     #===HELP FUNCTION for user===============================================================
     #ALSO: Acts as documentation for the package_update() function.
     @staticmethod
     def help():
+        """Returns a help message describing the package_update function, its parameters, return value, and an example of how to call it.
+
+        Parameters:
+            None
+
+        Returns:
+            str: A help message describing the package_update function, its parameters, return value, and an example of how to call it.
+
+        Example:
+            >>> example.help()
+        """
         help_message=(
         """Fetch and format Reddit posts from the ReleaseTrain by-subreddit endpoint.
 
@@ -116,15 +131,16 @@ class Update:
             str: formatted string containing the selected Reddit posts, or an error message if the request fails.
 
         Example:
-            example.package_update(
-                q='programming,technology',
-                minScore=50,
-                minComments=10,
-                limit=25,
-                page=2,
-                fields='url,score,tag,title,subreddit,author_description',
-                ascending=False,
+            >>> example.package_update(
+                >>> q='programming,technology',
+                >>> minScore=50,
+                >>> minComments=10,
+                >>> limit=25,
+                >>> page=2,
+                >>> fields='url,score,tag,title,subreddit,author_description',
+                >>> ascending=False
             )
+
         """
         )
         print(help_message)

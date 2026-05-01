@@ -1,11 +1,9 @@
-from ollama import ChatResponse, Client 
-from RT import Update 
-import requests
+from ollama import Client
+from .RT import Update
 import json
+import requests
 
-#LARGE FIX: Not handling 2 parameters for q=, only showing one subreddit in the results.
-#LARGE FIX: Agent is looping but not taking any actions or tool calling. Only can occur once. CHECK SYSTEM_PROMPT for instructions to agent.
-#LARGE FIX: Agent Summary Mode should provide links to key reddit posts
+
 
 #===TOOL REGISTRY=== (needed incase the LLM calls functions we DO NOT want to call. Is a security mesure.)
 TOOL_REGISTRY = {
@@ -68,31 +66,133 @@ MODE 2 — SUMMARIZATION MODE
 
 If a TOOL RESULT is present in the conversation (output from Update.package_update):
 
-1. DO NOT call the function again.
+1. THIS TURN IS TEXT ONLY. The latest message role is "tool". You MUST output a non-empty
+   assistant reply in the structure below. Do NOT invoke package_update again. Do NOT emit
+   tool_calls, function calls, or CALL_FUNCTION. Summarizing is mandatory every time a tool
+   result is the latest message — never skip, never answer with only whitespace.
 
-2. Instead:
-- Summarize the tool result clearly and concisely
-- Highlight key posts, trends, or important information
-- End by listing URLs of the most relevant Reddit posts from the results for the user to explore further AND verify.
-- Keep it structured and readable
+2. Output structure (use these headings so links stay easy to scan):
+   A) Summary — prose + facts from the tool only. Use this exact shape:
+      [Write 2-3 short sentences of summary prose here, with no heading label.]
 
-3. You are now allowed to:
+      - Real post title from tool output (score: 123)
+      - Another real post title from tool output (score: 98)
+
+      — Key Reddit links (verbatim)
+      - https://reddit.com/...
+      - https://reddit.com/...
+
+      — Grounding rule
+      Every URL above is copied from a [URL: ] line in the latest tool message.
+
+      Mandatory formatting constraints:
+      - Do NOT print banner lines like "============SUMMARY============".
+      - Keep the same position/order: summary paragraph first, then row list, then links, then grounding rule.
+      - Do NOT add an extra "Summary:" heading before the paragraph.
+      - Add generous spacing for readability:
+        * one blank line after summary paragraph
+        * one blank line before "— Key Reddit links (verbatim)"
+        * one blank line before "— Grounding rule"
+      - Do NOT place "[URL: ]" labels in link bullets; bullets contain URL strings only.
+      - Do NOT output placeholders or template text (forbidden examples: "Post title text here",
+        "Another post title here", "<title>", "= Post title text here", "... (rows of posts)",
+        "... (rows of links)").
+
+      Content rules:
+      - The Summary MUST NOT contain any URLs: no "http://", no "https://", no "[URL: ]",
+        no "reddit.com" strings. Put every link only under "— Key Reddit links (verbatim)".
+      - Do NOT start with filler (forbidden examples: "A summary of the latest posts",
+        "Here is a summary", "The following posts"). Start with substance: e.g. name the
+        first thread's exact [TITLE: ] or give a one-line theme grounded in those titles.
+      - First write ONE compact paragraph of 2-3 sentences that explains
+        the most relevant patterns/themes across the returned posts for the user's query.
+      - DO NOT include a label/prefix before that paragraph (forbidden: "Key takeaways:",
+        "Summary:", "Takeaways:"). Start directly with the sentence.
+      - Writing style for Key takeaways (friendly + readable):
+        * Use plain language and natural phrasing a developer can skim quickly.
+        * Keep sentence length moderate (about 12-22 words) and avoid run-ons.
+        * Prefer concrete statements tied to titles/scores over generic claims.
+        * Avoid hype words and vague filler (e.g., "wide range of applications",
+          "generated excitement", "various tools"). Be specific about what is trending.
+        * Keep tone conversational-professional, not robotic.
+      - Recommended pattern:
+        sentence 1 = what themes dominate these posts;
+        sentence 2 = notable high-signal items or repeated concerns;
+        sentence 3 (optional) = practical takeaway for someone following this topic.
+      - After that paragraph, include post rows for EVERY post block in tool output using:
+        - <exact [TITLE: ]> (score: <exact [SCORE: ]>)
+      - Row text MUST NOT include angle brackets "<" or ">".
+      - Rows must show only title + score (no subreddit, tags, author text, or URLs).
+      - Do NOT add one-line commentary under each row. Rows should remain single-line items only.
+      - Row integrity rule: each row MUST copy the exact title text from that block's [TITLE: ]
+        line and exact numeric value from [SCORE: ] in the same block.
+      - Takeaways must be grounded in returned posts (titles/scores/tags/subreddits only).
+        If insufficient detail exists, say "not provided in tool output" instead of guessing.
+      - Do NOT mention posts, products, or URLs that do not appear in the tool text.
+        Do NOT say you "removed", "skipped", or "could not find" a post unless the tool
+        output explicitly says so.
+   B) "— Key Reddit links (verbatim)" — REQUIRED section (NOT "### Key Reddit links").
+      - List URLs copied exactly from lines starting with "[URL: ] " in the latest tool
+        message (characters after the prefix only). No "[URL: ]" prefix in the bullets.
+      - Copy character-for-character: do not insert spaces inside a path (e.g.
+        "reddit.com/r/foo comments/..." is invalid). Do not duplicate the same URL twice.
+      - Include one bullet per distinct URL you are summarizing; order should match the
+        order of post blocks in the tool text when possible.
+      - Link integrity rule: every URL bullet MUST be copied from the latest tool result.
+        If a URL is not present there exactly, omit it.
+      - Domain safety rule: URL bullets are allowed ONLY if the copied URL host is one of:
+        "reddit.com", "www.reddit.com", or "redd.it". If a copied URL is not one of these
+        hosts, omit it and do not replace it with anything guessed.
+      - Count rule: number of URL bullets MUST equal number of post rows above.
+   C) "— Grounding rule" — If you listed any URLs, use exactly: "Every URL above is
+      copied from a [URL: ] line in the latest tool message." If the tool returned no
+      URLs, say there were no URLs in the tool output instead of inventing any.
+
+3. Anti-hallucination / verification:
+- DO NOT HALLUCINATE, OR PROVIDE INFORMATION NOT PROVIDED FROM THE REDDIT RESULTS.
+- Use ONLY facts present in the latest tool result content.
+- If a fact is missing, state "not provided in tool output" instead of guessing.
+- Do not invent package names, scores, authors, subreddits, dates, or links.
+- Never output a http(s):// URL in any section unless that exact full string appears in
+  the latest tool result on a line beginning with "[URL: ] " (and in practice: URLs appear
+  ONLY under Key Reddit links, never in Summary).
+- Never output non-Reddit links. If a URL is not clearly a Reddit URL
+  (reddit.com / www.reddit.com / redd.it), omit it.
+- Scores, subreddits, and titles in the Summary must match the same post block as in the tool text.
+- If tool output is malformed or missing expected fields, state "not provided in tool output"
+  and omit unverifiable rows/links; never fabricate replacements.
+
+4. You are now allowed to:
 - Interpret results
 - Summarize data
 
-4. DO NOT:
+5. DO NOT:
 - Call any function again
 - Output CALL_FUNCTION
+- Add claims that cannot be traced to the latest tool result
 
 ----------------------------------------
 DETECTION RULE
 ----------------------------------------
 
-If the latest message in the conversation contains raw data returned from a tool:
-→ Switch to SUMMARIZATION MODE
+ALWAYS inspect ONLY the latest message role before deciding mode.
 
-Otherwise:
-→ Stay in TOOL CALLING MODE
+Mode selection priority:
+1) If latest message role is "user" -> TOOL CALLING MODE (call package_update once for this request).
+2) If latest message role is "tool" -> SUMMARIZATION MODE ONLY: write the summary reply.
+   Never chain a second package_update until the user sends a new message.
+3) Otherwise -> TOOL CALLING MODE.
+
+CRITICAL CYCLE RESET RULE:
+- Every NEW user message starts a NEW cycle.
+- Even if older tool results exist in history, DO NOT summarize old results when the latest message is a new user request.
+- For each new user request, first output a tool call for Update.package_update(...).
+- After that tool result arrives, summarize that new tool result only.
+- Repeat this pattern indefinitely for multi-turn conversations.
+- Example reset behavior:
+  - User asks about TypeScript -> call tool -> summarize TypeScript results.
+  - User then asks about Python -> call tool AGAIN with Python parameters before any summary.
+  - Never answer the Python question by reusing TypeScript tool output.
 
 ----------------------------------------
 INPUT INTERPRETATION
@@ -118,7 +218,18 @@ CALL_FUNCTION: Update.package_update(...)
 (System executes tool and appends result)
 
 → You respond:
-"Here are the key highlights from the results: ..."
+Most of the highest-scoring posts focus on TypeScript 5.9, practical tooling, and editor
+performance fixes. The discussion also shows steady interest in migration stories and
+type-system ergonomics for real production code.
+
+- Announcing TypeScript 5.9 (score: 272)
+- TypeScript stuff I Wish I Knew Earlier (score: 236)
+
+— Key Reddit links (verbatim)
+- https://reddit.com/r/typescript/comments/1mf0vkq/announcing_typescript_59/
+
+— Grounding rule
+Every URL above is copied from a [URL: ] line in the latest tool message.
                  
 User → "Now show me Java posts"
 
@@ -130,10 +241,6 @@ User → "Now show me Java posts"
 
 (repeats indefinitely) 
 ''')
-
-#Testing of python package functions.  
-#Should have a function that is the main() loop.
- 
 
 class AgentUpdate:
     """"
@@ -150,7 +257,11 @@ class AgentUpdate:
     >>> print(is_ollama_running())
     """
     @staticmethod
-    def agent_update_conversation(SYSTEM_PROMPT=SYSTEM_PROMPT, TOOL_REGISTRY=TOOL_REGISTRY):
+    def agent_update_conversation(
+        SYSTEM_PROMPT=SYSTEM_PROMPT,
+        TOOL_REGISTRY=TOOL_REGISTRY,
+        reset_each_query=True,
+    ):
         """"
         Agent that can have a conversation with the user about updates on Reddit related to programming and Python.
 
@@ -161,13 +272,14 @@ class AgentUpdate:
         Args:
             SYSTEM_PROMPT (str): The system prompt that defines the agent's behavior and instructions.
             TOOL_REGISTRY (dict): A dictionary mapping function names to actual Python function references that the agent is allowed to call.
+            reset_each_query (bool): If True, each new user prompt starts with a fresh
+                [system, user] message list so old tool/assistant context does not leak
+                into the next query cycle.
 
         Example:
             >>> from PackageUpdateSearch.agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate
             >>> AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)
-        """
-        #Initial stage for agent.
-        
+        """        
         #Check whether ollama is running before conversation loop.
         if not AgentUpdate.is_ollama_running():
             print("\nOllama is not running")
@@ -211,48 +323,57 @@ class AgentUpdate:
                 
                 messages.append(ai_message) 
                 #NOTES:The ollama agent will NOT run functions, but supply a list in it's dictionary format ['tool_calls'] which includes the functions it WANTS to call. 
-                #NOTES:Therefore, we can run the functions ourselves. STILL acts as a dynamic agent!!!
                 #NOTES:`tool_calls` has the format of [{'function': {'name': 'package_update', 'arguments': {...}}}, ...] 
-                #NOTES:We need to extract the function NAME, extract its ARGUMENTS, and RUN. 
                 #NOTES:Extract arguments for function use with `package_update(**kwargs)` == `package_update(q=5, minScore=10, etc.)`
                 if ai_message.tool_calls:
+
                     for tool in ai_message.tool_calls:
                         function_name = tool.function.name
                         function_args = tool.function.arguments
+
                         if function_name in TOOL_REGISTRY:
-                            # Run the actual Python function with the AI-chosen arguments.
                             # **function_args unpacks the dict as keyword arguments.
-                            # e.g. package_update(**{"q": "Python"}) → package_update(q="Python")
-                            tool_result = TOOL_REGISTRY[function_name](**function_args)         #< Dict TOOL_REGISTRY holds function references. If we use the correct key, it will return the function reference, then we can call with parameters from `function_args`.
+                            # e.g. package_update(**{"q": "Python", "min_score" : 15}) → package_update(q="Python", min_score=15)   
+                            tool_result = TOOL_REGISTRY[function_name](**function_args)         
                             messages.append({
                                 "role": "tool",
                                 "content": str(tool_result)
                         })# Append the function result to the conversation for the agent to see in the next iteration.
                         else:
-                            # The AI asked for a function we don't allow — block it
                             tool_result = f"Error: '{function_name}' is not an approved function."
                             messages.append({
                                 "role": "tool",
                                 "content": str(tool_result)
-                       })    
+                       })  
+                              
                     continue
                 print(response.message.content)
+
             except Exception as e: #OllamaError -> Exception
                 print(f"Error during agent conversation: {e}")
                 return
                 #FIX: >>"Python functions NEED to follow Google style docstrings to be CONVERTED -> to an Ollama TOOL." 
                 #REPLACE print(response['message']['content']) -> print(response.message.content) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<       
             user_input = str(input("Ask the agent about any updates on Reddit related to programming and Python. Type 'exit' to quit.\n>"))
+            if reset_each_query:
+                messages = [
+                    {
+                        'role': 'system',
+                        'content': SYSTEM_PROMPT
+                    },
+                    {
+                        'role': 'user',
+                        'content': user_input
+                    }
+                ]
+            else:
+                messages.append({
+                    'role': 'user',
+                    'content': user_input
+                })
     
         print("Exiting agent conversation.")
 
-#Example:
-#   `from PackageUpdateSearch.agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate` in app.py to use the agent as a python package function. 
-#   Then call `AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)` to start the agent conversation loop. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        
-
-
-    #Returns True/False if ollama is running. Used to check if agent can run or not. === Useful for CLI agent to check before starting loop.
     @staticmethod
     def is_ollama_running():
         """"
@@ -271,11 +392,22 @@ class AgentUpdate:
             return res.status_code == 200
         except requests.exceptions.RequestException:
             return False
+    
+    @staticmethod
+    def show_reddit_fetch_tool(messages : list):
+        """
+        Function that prints the last tool result from the messages list.
+        Acts as a tool for the agent to call.
+        """
+        for message in reversed(messages):  
+            if message.get('role') == 'tool':
+                print(message.get('content'))
+                return True #Indicates that the function was successful.
+        
 
 def main():
     AgentUpdate.agent_update_conversation()
 
-#Fix: Instanciate the agent and let it dynamically handle functions as "tools"
 if __name__ == "__main__":
     main()
 

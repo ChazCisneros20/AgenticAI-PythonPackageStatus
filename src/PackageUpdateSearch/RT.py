@@ -3,8 +3,8 @@ import json
 
 class Update:
 #======MAIN CAPSTONE FUNCTION; ANY UPDATES TODAY ==============================
-
 #NOTE: Does not include an 'ask' function to speak to agent about any updates. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (reference in app.py))
+
     @staticmethod
     def package_update(
         q : str ='programming, Python',
@@ -39,7 +39,8 @@ class Update:
             [AUTHOR_DESCRIPTION: ]
 
         Example:
-            >>> example.package_update(
+            >>> from PackageUpdateSearch.RT import Update
+            >>> Update.package_update(
                 >>> q='programming,technology',
                 >>> minScore=50,
                 >>> minComments=10,
@@ -113,7 +114,8 @@ class Update:
             str: A help message describing the package_update function, its parameters, return value, and an example of how to call it.
 
         Example:
-            >>> example.help()
+            >>> from PackageUpdateSearch.RT import Update
+            >>> Update.help()
         """
         help_message=(
         """Fetch and format Reddit posts from the ReleaseTrain by-subreddit endpoint.
@@ -131,7 +133,8 @@ class Update:
             str: formatted string containing the selected Reddit posts, or an error message if the request fails.
 
         Example:
-            >>> example.package_update(
+            >>> from PackageUpdateSearch.RT import Update
+            >>> Update.package_update(
                 >>> q='programming,technology',
                 >>> minScore=50,
                 >>> minComments=10,

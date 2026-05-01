@@ -1,9 +1,12 @@
 import argparse
 import os
 import sys
-import RT
-from agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate 
+from . import RT
+from .agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate 
 from importlib.metadata import version, PackageNotFoundError #< For getting the python package version number from the hatchling build. (preinstalled with Python 3) 
+
+#WORKS : Running app from `python -m PackageUpdateSearch.app` 
+#DOES NOT!! WORK: Running app as `python app.py`. Import issues.
 
 def get_version():
     try:
@@ -12,12 +15,11 @@ def get_version():
         return "unknown"
 
 #CREATES parser OBJECT. 
-#Notes: If it says .add_paser(..) it creates a new COMMAND to parse. If it says .add_argument(..) it adds a PARAMETER to that command. 
-#Notes: If it says .add_parser(..) again, it creates a NEW command to parse, and the previous parameters using .add_argument(..) will not apply to the new command. <<<
+#Notes: If it says .add_parser(..) it creates a new COMMAND to parse. If it says .add_argument(..) it adds a PARAMETER to that command. 
 def create_parser():
     parser = argparse.ArgumentParser(
         description='CLI wrapper for PackageUpdateSearch RT utilities.'
-        #Removed add_help=False to allow automatic help flag generation for each command. <<<
+       
     )
     subparsers = parser.add_subparsers(dest='command', required=False)
 
@@ -100,14 +102,8 @@ def handle_command(parser, command_line):
                 print("Agent conversation ended.")
                 print_help()
             except KeyboardInterrupt:
-                print("\nExiting agent mode...")
-        #=====get-request command==========================================================
-        elif args.command == 'get-request':
-            RT.get_request(args.url)
-        #=====capstone command==========================================================
-        elif args.command == 'capstone':
-            RT.capstone()
-        #FIX: 'help' should actually provide an overview help of the CLI, not just print available commands. <<<
+                print("\nExiting agent mode...")\
+        
         #=====help command==========================================================
         elif args.command == 'help':
             print_help()
@@ -123,7 +119,6 @@ def handle_command(parser, command_line):
         
         #======END : CLI Branches based on user input command============================
 
-
     except SystemExit:
         return True
     except Exception as e:
@@ -131,13 +126,10 @@ def handle_command(parser, command_line):
         return True
 
 
-
 def print_help():
     """Display available commands."""
     print("\nAvailable commands:")
     print("  package-update  - Fetch and format ReleaseTrain Reddit posts")
-    print("  get-request     - Send a GET request to a URL")
-    print("  capstone        - Print the capstone greeting")
     print("  help            - Show this help message")
     print("  -v              - Show PackageUpdateSearch CLI version information")
     print("  agent-update    - Start an agent conversation about Reddit updates") #FIX: Add this to help menu. <<<
@@ -145,7 +137,7 @@ def print_help():
     print("\n Use '<command> --help'  or '<command> --h' for more details on a specific command.\n")
 
 #====MAIN CLI APPLICATION LOOP ===================================================
-#NOTE: Does not include an 'ask' function to speak to agent about any updates. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (reference in RT.py))
+#NOTE: 
 def main():
     #parser object.
     parser = create_parser()
@@ -167,7 +159,6 @@ def main():
         except KeyboardInterrupt:
             print("\nGoodbye!")
             break
-
 
 if __name__ == '__main__':
     main()

@@ -1,18 +1,20 @@
 # PackageUpdateSearch
 
-A small Python package that provides an interactive CLI wrapper for the `PackageUpdateSearch.example` utilities.
+A small Python package that provides an interactive CLI wrapper for the `PackageUpdateSearch.RT` and `PackageUpdateSearch.agenticRT` utilities.
 
 ## Overview
 
 `PackageUpdateSearch` includes:
 
-- `app.py`: an interactive CLI loop that accepts commands and arguments.
-- `example.py`: business logic for fetching ReleaseTrain Reddit posts, making generic GET requests, and printing a capstone greeting.
+- `app.py`: An interactive CLI loop that accepts commands and arguments to return structured Reddit post data under specific parameter commands.
+- `from PackageUpdateSearch.RT`: Logic for fetching ReleaseTrain Reddit posts, and printing a helpful description for how to use the package.
 
 ## Requirements
 
 - Python 3.9+
-- `requests`
+- Ollama:llama3.2:3b
+- `requests`, `json`, `ollama`
+
 
 ## Installation
 
@@ -42,8 +44,8 @@ python src/PackageUpdateSearch/app.py
 The interactive CLI supports the following commands:
 
 - `package-update` - Fetch and format Reddit posts from the ReleaseTrain API.
-- `get-request` - Send a generic HTTP GET request to a URL.
-- `capstone` - Print the capstone greeting message.
+- 
+- `agent-update` - Use a dynamic agent to handle fetching and formatting Reddit posts for you in a clean, summarized response.
 - `help` - Show available commands.
 - `exit` - Exit the interactive session.
 

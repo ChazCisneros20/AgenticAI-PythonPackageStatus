@@ -1,152 +1,83 @@
-# PackageUpdateSearch CLI Documentation
+# PackageUpdateSearch CLI (`app.py`)
 
 ## Overview
 
-`app.py` is an interactive command-line interface (CLI) wrapper around the `example.py` module. It provides a user-friendly way to execute the package update search utility, fetch generic HTTP GET responses, and print a capstone greeting without needing to write Python code directly.
+`app.py` is an interactive CLI built with **`argparse`**. It dispatches to:
 
-The CLI runs in an interactive loop, accepting commands until the user exits.
+- **`RT.Update.package_update`** for **`package-update`**
+- **`AgentUpdate.agent_update_conversation`** (from **`agenticRT`**) for **`agent-update`**
+
+The session runs until **`exit`** or Ctrl+C.
 
 ## Architecture
 
-The CLI uses Python's `argparse` library to parse commands and arguments. It creates a parser once and reuses it during the interactive session.
+### `create_parser()`
 
-### Key Components
+Builds one **`ArgumentParser`** and subparsers: **`package-update`**, **`get-request`**, **`capstone`**, **`agent-update`**, **`help`**, **`exit`**, plus root **`-v` / `--version`**.
 
-#### 1. `create_parser()`
-- Creates and returns an `ArgumentParser` instance with `add_help=False`.
-- Defines subcommands using `add_subparsers(dest='command', required=False)`.
-- Registers these commands:
-  - `package-update` - Fetch ReleaseTrain Reddit posts.
-  - `get-request` - Send a generic HTTP GET request.
-  - `capstone` - Print the capstone greeting message.
-  - `help` - Display available commands.
-  - `exit` - Quit the CLI.
+### `handle_command(parser, command_line)`
 
-#### 2. `handle_command(parser, command_line)`
-- Parses the user's input string.
-- Runs the corresponding function from `example.py`.
-- Catches `SystemExit` from argparse to keep the CLI running after parse errors.
-- Returns `True` to continue or `False` to exit.
+Splits the user line, **`parse_args`**, and branches on **`args.command`**. Catches **`SystemExit`** from argparse so a bad line does not kill the REPL. Returns **`False`** only for **`exit`**.
 
-#### 3. `print_help()`
-- Prints the list of available commands and their descriptions.
-- Called at startup and when the user enters `help`.
+**Implemented in `handle_command` today:** **`package-update`**, **`agent-update`**, **`help`**, and a **`elif args.command == '-v'`** branch. Subparsers **`get-request`** and **`capstone`** are registered but **not** handled—those commands parse successfully and currently do nothing.
 
-#### 4. `main()`
-- Entry point for the CLI.
-- Creates the parser once.
-- Prints a welcome message and command list.
-- Enters a loop that reads input and dispatches it to `handle_command()`.
-- Handles `KeyboardInterrupt` by printing `Goodbye!` and exiting.
+### `print_help()`
 
-## Command Reference
+Startup banner commands match this list (**no** **`get-request`** / **`capstone`** in the banner):
+
+- **`package-update`**, **`help`**, **`-v`**, **`agent-update`**, **`exit`**
+
+### `main()`
+
+Creates the parser, prints the welcome line and **`print_help()`**, loops on **`input("> ")`** → **`handle_command`**.
+
+## Command reference
 
 ### `package-update`
-Fetches Reddit posts from the ReleaseTrain API endpoint `https://releasetrain.io/api/reddit/by-subreddit`.
 
-Arguments:
-- `--q` (default: `programming,technology`) - comma-separated subreddit names.
-- `--min-score` (default: `50`) - minimum post score.
-- `--min-comments` (default: `10`) - minimum number of comments.
-- `--limit` (default: `25`) - maximum number of posts to return.
-- `--page` (default: `2`) - page number for pagination.
-- `--fields` (default: `url,score,tag,title,subreddit,author_description`) - comma-separated requested fields.
-- `--ascending` - sort posts by score in ascending order. The default is descending.
+Calls **`RT.Update.package_update`** with the parsed flags. Same ReleaseTrain endpoint as the library.
 
-Example:
-```
-> package-update --q Python --min-score 30 --limit 10
-```
+See **`README.md`** / **`PACKAGE_DOCUMENTATION.md`** for flags.
 
-### `get-request`
-Sends a generic HTTP GET request and prints the `requests.Response` object.
+### `agent-update`
 
-Arguments:
-- `url` (required) - the full URL to request.
+Runs **`AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)`**. When that returns, prints **`Agent conversation ended.`** and **`print_help()`** again.
 
-Example:
-```
-> get-request https://api.example.com/data
-```
+### `help` / `exit`
 
-### `capstone`
-Prints the capstone greeting message.
+As described in **`print_help()`** and **`handle_command`**.
 
-Example:
-```
-> capstone
-```
+### `get-request` / `capstone` (limited)
 
-### `help`
-Displays available commands.
+Subcommands exist for **`--help`**. Until **`handle_command`** gains branches, interactive use has **no effect**.
 
-Example:
-```
-> help
+## Error handling
+
+- Empty **`>`** input is skipped.
+- **`SystemExit`** from argparse is swallowed inside **`handle_command`**.
+- **`RT.package_update`** returns error/advisory strings instead of raising for HTTP issues (see **`RT.py`**).
+- **`KeyboardInterrupt`** → **`Goodbye!`** and exit loop.
+
+## Integration (actual wiring)
+
+| CLI command | Implementation |
+|-------------|----------------|
+| `package-update` | **`RT.Update.package_update`** |
+| `agent-update` | **`agenticRT.AgentUpdate.agent_update_conversation`** |
+| `help` / `exit` | **`print_help`** / loop exit |
+
+## Running
+
+```bash
+pip install -e .
+python -m PackageUpdateSearch.app
 ```
 
-### `exit`
-Exits the CLI session.
-
-Example:
-```
-> exit
-Goodbye!
-```
-
-## Error Handling
-
-- Empty input is ignored and the prompt redisplays.
-- Invalid arguments trigger argparse errors but keep the CLI open.
-- API request failures return a status message instead of crashing.
-- `Ctrl+C` is handled gracefully with a `Goodbye!` message.
-
-## Integration with `example.py`
-
-The CLI delegates business logic to `example.py`:
-
-| CLI Command | Function | Module |
-|---|---|---|
-| `package-update` | `example.package_update(...)` | `example.py` |
-| `get-request` | `example.get_request(...)` | `example.py` |
-| `capstone` | `example.capstone()` | `example.py` |
-
-The CLI handles input parsing and output display, while `example.py` performs the request handling and formatting.
-
-## Usage Example
-
-```
-$ cd src
-$ python -m PackageUpdateSearch.app
-Welcome to the PackageUpdateSearch CLI!
-
-Available commands:
-  package-update  - Fetch and format ReleaseTrain Reddit posts
-  get-request     - Send a GET request to a URL
-  capstone        - Print the capstone greeting
-  help            - Show this help message
-  exit            - Exit the CLI
-
-> package-update --q Python
-[API response with formatted posts]
-> capstone
-Hello World
-This is the start of my Senior Capstone project !
-> exit
-Goodbye!
-```
-
-## Running the App
-
-From the project root:
+From repo **`src`** with **`PYTHONPATH`** set if needed:
 
 ```bash
 cd src
 python -m PackageUpdateSearch.app
 ```
 
-Or directly from the repository root:
-
-```bash
-python src/PackageUpdateSearch/app.py
-```
+**Note:** Running **`python app.py`** directly inside the package folder can fail imports; prefer **`python -m PackageUpdateSearch.app`** from an environment where the package is installed.

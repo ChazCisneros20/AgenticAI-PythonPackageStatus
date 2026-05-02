@@ -1,67 +1,64 @@
 # PackageUpdateSearch
 
-A small Python package that provides an interactive CLI wrapper for the `PackageUpdateSearch.RT` and `PackageUpdateSearch.agenticRT` utilities.
+Python package with an interactive CLI around **`PackageUpdateSearch.RT`** (ReleaseTrain Reddit fetch) and **`PackageUpdateSearch.agenticRT`** (Ollama agent with `package_update` as a tool).
 
 ## Overview
 
-`PackageUpdateSearch` includes:
-
-- `app.py`: An interactive CLI loop that accepts commands and arguments to return structured Reddit post data under specific parameter commands.
-- `from PackageUpdateSearch.RT`: Logic for fetching ReleaseTrain Reddit posts, and printing a helpful description for how to use the package.
+- **`app.py`** — Interactive REPL: `argparse` subcommands (`package-update`, `agent-update`, `help`, `exit`, etc.).
+- **`RT.py`** — `Update.package_update()` calls `https://releasetrain.io/api/reddit/by-subreddit` and formats plain-text post blocks (`[URL: ]`, `[TITLE: ]`, …).
+- **`agenticRT.py`** — `AgentUpdate.agent_update_conversation()` runs Ollama (`llama3.2:3b`), executes tool calls via `TOOL_REGISTRY`, prints fetched Reddit URLs from the latest tool message, then prints the model reply.
 
 ## Requirements
 
-- Python 3.9+
-- Ollama:llama3.2:3b
-- `requests`, `json`, `ollama`
-
+- Python **3.9+**
+- **Ollama** running locally; pull the chat model: `ollama pull llama3.2:3b`
+- Python deps (see **`pyproject.toml`**): **`requests`**, **`ollama`**
 
 ## Installation
-
-From the project root, install the package locally:
 
 ```bash
 pip install -e .
 ```
 
+Optional dev/tests:
+
+```bash
+pip install -e ".[test]"
+```
+
 ## Running the CLI
 
-From the `src` directory:
+After install:
+
+```bash
+python -m PackageUpdateSearch.app
+```
+
+From the repo (package must resolve as `PackageUpdateSearch`; installing editable is easiest):
 
 ```bash
 cd src
 python -m PackageUpdateSearch.app
 ```
 
-Or from the project root using the file path:
+## CLI commands
 
-```bash
-python src/PackageUpdateSearch/app.py
-```
+| Command | Behavior |
+|--------|----------|
+| `package-update ...` | Runs `RT.Update.package_update` with flags (`--q`, `--min-score`, …). |
+| `agent-update` | Starts `AgentUpdate.agent_update_conversation()`. |
+| `help` | Lists commands (see `print_help()`). |
+| `exit` | Quits the REPL. |
 
-## CLI Commands
+**`-v` / `--version`** on the root parser: e.g. `python -m PackageUpdateSearch.app --version`.
 
-The interactive CLI supports the following commands:
-
-- `package-update` - Fetch and format Reddit posts from the ReleaseTrain API.
-- 
-- `agent-update` - Use a dynamic agent to handle fetching and formatting Reddit posts for you in a clean, summarized response.
-- `help` - Show available commands.
-- `exit` - Exit the interactive session.
+The subparsers **`get-request`** and **`capstone`** exist for `--help`, but **`handle_command`** in **`app.py`** does not run them yet—only **`package-update`**, **`agent-update`**, **`help`**, **`exit`**, and a legacy **`elif`** for `-v` as a fake command.
 
 ### `package-update`
 
-Fetches Reddit posts from `https://releasetrain.io/api/reddit/by-subreddit`.
+Targets `https://releasetrain.io/api/reddit/by-subreddit`.
 
-Arguments:
-
-- `--q` (default: `programming,technology`) - comma-separated subreddit names.
-- `--min-score` (default: `50`) - minimum post score.
-- `--min-comments` (default: `10`) - minimum number of comments.
-- `--limit` (default: `25`) - maximum number of posts to return.
-- `--page` (default: `2`) - pagination page number.
-- `--fields` (default: `url,score,tag,title,subreddit,author_description`) - comma-separated requested fields.
-- `--ascending` - sort score ascending (default is descending).
+Typical flags: `--q` (default `programming,technology`), `--min-score`, `--min-comments`, `--limit`, `--page`, `--fields`, `--ascending`.
 
 Example:
 
@@ -69,40 +66,25 @@ Example:
 > package-update --q Python --min-score 30 --limit 10
 ```
 
-### `get-request`
+## Package API (library)
 
-Sends a simple HTTP GET request and prints the response object.
+```python
+from PackageUpdateSearch.RT import Update
 
-Example:
-
-```text
-> get-request https://api.example.com/data
+text = Update.package_update(q="programming,technology", limit=10)
+# Update.help()  # prints usage text
 ```
 
-### `capstone`
+Agent entry:
 
-Prints the capstone greeting message.
+```python
+from PackageUpdateSearch.agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate
 
-Example:
-
-```text
-> capstone
+AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)
 ```
 
-## Package API
+## Tests
 
-The package also exposes the `example` class in `src/PackageUpdateSearch/example.py`.
-
-Available methods:
-
-- `example.package_update(...)`
-- `example.get_request(URL)`
-- `example.capstone()`
-- `example.help()`
-
-## Notes
-
-- The CLI is a thin wrapper around `example.py`.
-- `example.package_update()` returns a formatted string of Reddit posts.
-- `example.get_request()` prints the raw `requests.Response` object.
-
+```bash
+pytest tests/
+```

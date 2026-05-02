@@ -394,7 +394,17 @@ class AgentUpdate:
                        })  
                               
                     continue
+
+                urls = AgentUpdate.extract_urls_from_tool_result(messages)
+                if urls:
+                    print("\n--- All Fetched Links ---")
+                    for url in urls:
+                        print(f"- {url}")
+                    print("\n--- End of Links ---")
+                else:
+                    print("\nNo links found in the tool result.")
                 print(response.message.content)
+                
 
             except Exception as e: #OllamaError -> Exception
                 print(f"Error during agent conversation: {e}")
@@ -450,6 +460,20 @@ class AgentUpdate:
             if message.get('role') == 'tool':
                 print(message.get('content'))
                 return True #Indicates that the function was successful.
+    #NEW: TESTING FUNCTION
+    @staticmethod
+    def extract_urls_from_tool_result(messages: list):
+        """Scans messages for the last tool result and returns all URLs from it."""
+        for message in reversed(messages):
+            if isinstance(message, dict) and message.get('role') == 'tool':
+                urls = []
+                for line in message.get('content', '').splitlines():
+                    if line.startswith('[URL: ]'):
+                        url = line.replace('[URL: ]', '').strip()
+                        if url:
+                            urls.append(url)
+                return urls
+        return []
         
 
 def main():

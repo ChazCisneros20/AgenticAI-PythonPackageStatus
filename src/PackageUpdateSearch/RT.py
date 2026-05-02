@@ -77,29 +77,37 @@ class Update:
         }
 
         response = requests.get(url=base_url, params=params)
-
+        #===SUCCESSFUL RESPONSE HANDLING===
         if response.status_code == 200:
             response_data = response.json()
             response_data = response_data.get('data', [])
-            response_data = sorted(response_data, key=lambda item: item.get('score', 0), reverse=not ascending)
+            #===EMPTY RESPONSE HANDLING(API returns None)===
+            if response_data is None:
+                return 'Currently unable to search updates <Response data is None:> ' + str(response_data)
+            #===EMPTY RESPONSE HANDLING(API returns empty list - no posts found)===
+            elif len(response_data) == 0:   
+                return 'Currently unable to search updates <Response data is empty:> ' + str(response_data)
+            #===SUCCESSFUL RESPONSE HANDLING(API returns valid data)===  
+            else:               
+                response_data = sorted(response_data, key=lambda item: item.get('score', 0), reverse=not ascending)
+                reddit_posts = ''
+                for item in response_data:
+                    try:
+                        reddit_posts += (
+                            '[URL: ] ' + str(item.get('url', '')) + '\n' +
+                            '[SCORE: ] ' + str(item.get('score', '')) + '\n' +
+                            '[TAG(s): ] ' + str(item.get('tag', '')) + '\n' +
+                            '[TITLE: ] ' + str(item.get('title', '')) + '\n' +
+                            '[SUBREEDDIT: ] ' + str(item.get('subreddit', '')) + '\n'
+                        )
+                        reddit_posts += '[AUTHOR_DESCRIPTION: ] ' + str(item.get('author_description', '')) + '\n\n'
+                    except Exception:
+                        reddit_posts += '\n'
+                        continue
 
-            reddit_posts = ''
-            for item in response_data:
-                try:
-                    reddit_posts += (
-                        '[URL: ] ' + str(item.get('url', '')) + '\n' +
-                        '[SCORE: ] ' + str(item.get('score', '')) + '\n' +
-                        '[TAG(s): ] ' + str(item.get('tag', '')) + '\n' +
-                        '[TITLE: ] ' + str(item.get('title', '')) + '\n' +
-                        '[SUBREEDDIT: ] ' + str(item.get('subreddit', '')) + '\n'
-                    )
-                    reddit_posts += '[AUTHOR_DESCRIPTION: ] ' + str(item.get('author_description', '')) + '\n\n'
-                except Exception:
-                    reddit_posts += '\n'
-                    continue
-
-            return reddit_posts
-
+                return reddit_posts
+                
+        #===UNSUCCESSFUL RESPONSE HANDLING===
         return 'Currently unable to search updates <Response code not 200:> ' + str(response.status_code)
     #===HELP FUNCTION for user===============================================================
     #ALSO: Acts as documentation for the package_update() function.

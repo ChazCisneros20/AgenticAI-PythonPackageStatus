@@ -8,12 +8,21 @@ authors = [{name = "Ethan Chaz Cisneros", email = "e_cisneros3@u.pacific.edu"},]
 description = "Capstone Test Python3 Package"
 readme = "README.md"
 requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.28",
+    "ollama>=0.3",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent", 
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/ChazCisneros20/AgenticAI-PythonPackageStatus"

@@ -66,12 +66,47 @@ MODE 2 — SUMMARIZATION MODE
 
 If a TOOL RESULT is present in the conversation (output from Update.package_update):
 
-1. THIS TURN IS TEXT ONLY. The latest message role is "tool". You MUST output a non-empty
-   assistant reply in the structure below. Do NOT invoke package_update again. Do NOT emit
-   tool_calls, function calls, or CALL_FUNCTION. Summarizing is mandatory every time a tool
-   result is the latest message — never skip, never answer with only whitespace.
+0) NO POSTS / API ADVISORY (check this BEFORE the normal summary outline).
 
-2. Output structure (use these headings so links stay easy to scan):
+If the latest tool message contains ANY of these substrings (exact text from Update.package_update):
+- "Currently unable to search updates <Response data is empty:>"
+- "Currently unable to search updates <Response data is None:>"
+- "Currently unable to search updates <Response code not 200:>"
+
+Then the tool did NOT return Reddit post blocks. This turn is still SUMMARIZATION MODE (text only,
+no tool_calls), but you MUST follow this branch instead of sections A/B/C below:
+
+- Write 3–6 short sentences of friendly, plain prose. Match the situation: empty list vs null vs
+  HTTP error — use only what the tool string says. Do not pretend posts were found.
+- Explain that ReleaseTrain may have no indexed rows for this query: the subreddit string (`q`),
+  filters (e.g. minScore, minComments, page), or spelling/casing might not match the API index
+  (names are often case-sensitive; avoid `r/` prefixes in `q` unless you know the API expects them).
+- FORBIDDEN: any "http://" or "https://" URL, fake thread titles, fake scores, or bullet lists that
+  mimic real results. No "— Key Reddit links" section. No hallucinated NSFW or off-topic links to
+  fill silence.
+- End by inviting another try: suggest tweaking the subreddit slug (e.g. lowercase), loosening
+  filters, or rephrasing — and use a warm close such as "Want to try again? Tell me what to search
+  next (e.g. a different subreddit or lower score threshold)."
+- Retries are allowed: after your reply, the user can send a new message. On that NEXT user
+  message you return to TOOL CALLING MODE and call `package_update` again with parameters inferred
+  from their new request. An empty or failed result never blocks the user from trying again.
+
+1. THIS TURN IS TEXT ONLY. The latest message role is "tool". You MUST output a non-empty
+   assistant reply. If rule (0) applied, you are done after that prose — do not use structure (2).
+   Otherwise, follow structure (2) below. Do NOT invoke package_update again on this same turn.
+   Do NOT emit tool_calls, function calls, or CALL_FUNCTION.
+
+2. Output structure WHEN the tool result contains REAL post blocks (lines like "[TITLE: ]" with
+   content and "[URL: ]" with real URLs). If rule (0) applied, skip this entire section.
+   (use these headings so links stay easy to scan):
+
+   CROSS-VERIFICATION (normal summaries only): The "— Key Reddit links (verbatim)" block is how the
+   user audits your answer for hallucinations. They must be able to open each URL and confirm that
+   your summary paragraph and title/score rows match what that thread shows. If the tool output
+   includes a non-empty "[URL: ] " line for a post you summarized, you MUST include that exact URL
+   in the links section (one bullet per summarized post row, same order when possible). Never skip
+   links to shorten the reply. Never "clean up" or rewrite URLs.
+
    A) Summary — prose + facts from the tool only. Use this exact shape:
       [Write 2-3 short sentences of summary prose here, with no heading label.]
 
@@ -132,6 +167,8 @@ If a TOOL RESULT is present in the conversation (output from Update.package_upda
         Do NOT say you "removed", "skipped", or "could not find" a post unless the tool
         output explicitly says so.
    B) "— Key Reddit links (verbatim)" — REQUIRED section (NOT "### Key Reddit links").
+      - Primary purpose: give the user clickable evidence. Each link must match one summarized post
+        row above so they can cross-verify titles/scores and your prose against the live thread.
       - List URLs copied exactly from lines starting with "[URL: ] " in the latest tool
         message (characters after the prefix only). No "[URL: ]" prefix in the bullets.
       - Copy character-for-character: do not insert spaces inside a path (e.g.
@@ -144,12 +181,19 @@ If a TOOL RESULT is present in the conversation (output from Update.package_upda
         "reddit.com", "www.reddit.com", or "redd.it". If a copied URL is not one of these
         hosts, omit it and do not replace it with anything guessed.
       - Count rule: number of URL bullets MUST equal number of post rows above.
-   C) "— Grounding rule" — If you listed any URLs, use exactly: "Every URL above is
-      copied from a [URL: ] line in the latest tool message." If the tool returned no
-      URLs, say there were no URLs in the tool output instead of inventing any.
+   C) "— Grounding rule" — If you listed any URLs, the first line of this subsection must be exactly:
+      "Every URL above is copied from a [URL: ] line in the latest tool message."
+      On the following line, add one short sentence telling the user they can open those links to
+      verify that your title/score rows and summary match the source threads (no new URLs in this
+      sentence). If the tool returned no URLs, say there were no URLs in the tool output instead of
+      inventing any.
+      - If rule (0) applied (empty/null/error advisory string), omit this subsection.
 
 3. Anti-hallucination / verification:
 - DO NOT HALLUCINATE, OR PROVIDE INFORMATION NOT PROVIDED FROM THE REDDIT RESULTS.
+- In SUMMARIZATION MODE with real posts, treat the verbatim link list as mandatory verification
+  material: the user relies on it to catch invented titles, wrong scores, or invented threads.
+  Missing links when [URL: ] lines exist in the tool text is a serious failure mode.
 - Use ONLY facts present in the latest tool result content.
 - If a fact is missing, state "not provided in tool output" instead of guessing.
 - Do not invent package names, scores, authors, subreddits, dates, or links.
@@ -161,15 +205,18 @@ If a TOOL RESULT is present in the conversation (output from Update.package_upda
 - Scores, subreddits, and titles in the Summary must match the same post block as in the tool text.
 - If tool output is malformed or missing expected fields, state "not provided in tool output"
   and omit unverifiable rows/links; never fabricate replacements.
+- If the tool message matches rule (0) (ReleaseTrain empty/null/non-200 advisory), there is nothing
+  to ground in post rows — only explain the situation and invite retry; never invent posts or URLs.
 
 4. You are now allowed to:
 - Interpret results
 - Summarize data
 
-5. DO NOT:
-- Call any function again
-- Output CALL_FUNCTION
-- Add claims that cannot be traced to the latest tool result
+5. DO NOT (on this same assistant turn after a tool message):
+- Call any function again or emit tool_calls (the user’s next message starts a new cycle).
+- Output CALL_FUNCTION.
+- Add claims that cannot be traced to the latest tool result when that result contained real posts.
+  Rule (0) advisory strings are not "posts" — do not fabricate any.
 
 ----------------------------------------
 DETECTION RULE
@@ -284,7 +331,7 @@ class AgentUpdate:
         if not AgentUpdate.is_ollama_running():
             print("\nOllama is not running")
             print("Please start it by running: ollama serve")
-            print("Make sure gemma3 is downloaded: ollama pull gemma3")
+            print("Make sure the chat model is pulled: ollama pull llama3.2:3b")
             return
         
         print("Ollama is running. Starting agent conversation...")

@@ -2,212 +2,218 @@
 
 ## Overview
 
-PackageUpdateSearch is a Python CLI and agentic system that fetches, processes, and summarizes Reddit posts using the ReleaseTrain API. 
-It supports both a command-line interface and an AI-powered agent (via Ollama:llama3.2:3b) that can call approved Python functions as tools and summarize results.
+PackageUpdateSearch is an installable Python package (Hatchling / PEP 621) that:
 
-The system is designed around a controlled tool-execution architecture where all LLM actions are restricted to a predefined function registry.
+- Fetches Reddit posts via the ReleaseTrain HTTP API (`Update.package_update`).
+- Exposes an **interactive CLI** (`PackageUpdateSearch.app`) built on `argparse` subcommands.
+- Adds an optional **agentic flow** powered by **Ollama**, using **`llama3.2:3b`** as the chat model with native **`tools`** so the runtime executes only functions listed in **`TOOL_REGISTRY`**.
 
----
-
-## Core Features
-
-### Reddit Data Fetching
-
-The main function of the system is:
-
-Update.package_update()
-
-This function retrieves Reddit posts from the ReleaseTrain API and formats them into structured output.
-
-Supported features:
-- Subreddit selection (q)
-- Minimum score filtering (minScore)
-- Minimum comment filtering (minComments)
-- Pagination (page)
-- Field selection (fields)
-- Sorting (ascending)
-- Result limit (limit)
+The repo layout is **`src/PackageUpdateSearch/`** (`RT.py`, `app.py`, `agenticRT.py`). There is no top-level **`cli.py`**; the CLI is the `app` module.
 
 ---
 
-## CLI Interface
+## Installation and dependencies
 
-The CLI allows interaction with all system functionality.
+Runtime dependencies are declared in **`pyproject.toml`** under **`[project.dependencies]`**:
 
-Example:
+- `requests` — HTTP requests to ReleaseTrain and the Ollama health check.
+- `ollama` — Python client for the local Ollama server.
 
-python cli.py package-update --q programming,technology --limit 10
+Optional test dependencies:
 
----
+```text
+pip install ".[test]"
+```
 
-### Available Commands
+(which pulls `pytest` for the `tests/` suite).
 
-| Command         | Description |
-|----------------|-------------|
-| package-update | Fetch Reddit posts |
-| get-request    | Send HTTP GET request |
-| capstone       | Print greeting message |
-| agent-update   | Start AI agent conversation |
-| help           | Show CLI help |
-| -v / --version | Show CLI version |
-| exit           | Exit CLI |
+Standard editable install:
 
----
+```text
+pip install -e .
+```
 
-## package-update Command
-
-Fetches and formats Reddit posts from the API.
-
-Example:
-
-python cli.py package-update --q python --limit 5
-
-### Parameters
-
---q             Subreddits to query (default: programming, Python)  
---min-score     Minimum post score (default: 50)  
---min-comments  Minimum comment count (default: 10)  
---limit         Number of posts returned (default: 25)  
---page          Pagination page (default: 2)  
---fields        Fields returned from API  
---ascending     Sort order (0 or 1)
+**Python:** `>=3.9` per `pyproject.toml`.
 
 ---
 
-## AI Agent System (AgentUpdate)
+## Running the CLI
 
-The system includes an AI agent powered by Ollama (Llama 3.2) that can:
+After installation, preferred entry:
 
-- Interpret user requests
-- Decide when to call tools
-- Execute approved Python functions
-- Summarize results
+```bash
+python -m PackageUpdateSearch.app
+```
 
----
+From the repository root without installing, ensure `PYTHONPATH` includes `src` or run from layouts your environment supports so `PackageUpdateSearch` resolves as a package (see project `README.md`).
 
-## Agent Modes
+The CLI prints a welcome message and a short help banner, then reads lines like **`> package-update ...`** in a loop until **`exit`** or Ctrl+C.
 
-### TOOL CALLING MODE
-
-When no tool output is present, the model MUST respond with:
-
-CALL_FUNCTION:
-Update.package_update(...)
-
-Rules:
-- Always call a function
-- Never answer directly
-- Use defaults if needed
-- Extract parameters from user input when possible
+**Version:** `-v` / `--version` is registered on the root parser—use **`python -m PackageUpdateSearch.app --version`** when invoking argparse directly. Inside the interactive `>` loop, parsing is line-based (e.g. `package-update --limit 5`).
 
 ---
 
-### SUMMARIZATION MODE
+## Available commands (`app.py`)
 
-When tool output is present, the model must:
+| Command | Purpose |
+|---------|---------|
+| `package-update` | Call `RT.Update.package_update(...)` with CLI flags |
+| `get-request <url>` | Declared as a subparser (`get-request --help` works) — **interactive `handle_command` has no dispatch branch yet**, so parsing succeeds but nothing runs until wired up |
+| `capstone` | Declared as a subparser — **same as above**: no **`handle_command`** branch yet |
+| `agent-update` | Start **`AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)`** |
+| `help` | Show the in-app command list (`print_help`) |
+| `exit` | Leave the CLI loop |
 
-- Summarize Reddit results
-- Highlight key posts and trends
-- Provide useful links
-- NOT call any functions
+The **`print_help()`** banner lists **`package-update`**, **`help`**, **`-v`**, **`agent-update`**, **`exit`**; use e.g. **`get-request --help`** for parsers not listed there.
 
----
-
-## TOOL REGISTRY
-
-Only approved functions can be executed:
-
-TOOL_REGISTRY = {
-    "package_update": Update.package_update
-}
-
-This ensures:
-- No unsafe function execution
-- Controlled tool access
-- Secure agent behavior
+**Implementation note:** In **`app.py`**, **`args.ascending`** is a boolean from **`store_true`**; **`Update.package_update`** accepts **`ascending`** as `0`/`1` and coerces appropriately.
 
 ---
 
-## Agent Workflow
+## `package-update`
 
-1. User inputs request
-2. LLM processes request
-3. LLM optionally requests tool call
-4. Python executes tool via TOOL_REGISTRY
-5. Tool output is appended to conversation
-6. LLM summarizes results
-7. Loop continues until exit
+Calls **`PackageUpdateSearch.RT.Update.package_update`** with parameters from argparse.
+
+**CLI defaults** (`app.py`; may differ from the RT method defaults when omitted in Python-only calls):
+
+| Flag | Meaning | CLI default |
+|------|---------|---------------|
+| `--q` | Comma-separated subreddit query | `programming,technology` |
+| `--min-score` | Minimum post score | `50` |
+| `--min-comments` | Minimum comment count | `10` |
+| `--limit` | Max posts | `25` |
+| `--page` | Page index | `2` |
+| `--fields` | Comma-separated API fields | `url,score,tag,title,subreddit,author_description` |
+| `--ascending` | If present, sort scores ascending (`store_true`); otherwise descending | omitted (descending) |
+
+**Example** (interactive prompt):
+
+```text
+> package-update --q programming,technology --limit 10
+```
+
+**Python:**
+
+```python
+from PackageUpdateSearch.RT import Update
+
+text = Update.package_update(
+    q="programming,technology",
+    minScore=50,
+    minComments=10,
+    limit=10,
+    page=2,
+    fields="url,score,tag,title,subreddit,author_description",
+    ascending=1,
+)
+```
+
+`Update.package_update` validates **`ascending`** as `0` or `1` (then uses a boolean internally). On non-200 responses it returns an error string including the HTTP status.
 
 ---
 
-## Example Agent Usage
+## `Update.help()`
 
-from agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate
+Static helper that **`print`**s a prose description of `package_update` (parameters and example usage).
+
+```python
+from PackageUpdateSearch.RT import Update
+Update.help()
+```
+
+---
+
+## API layer — ReleaseTrain
+
+- **Endpoint:** `https://releasetrain.io/api/reddit/by-subreddit`
+- **Behavior:** Parses JSON **`data`** list; sorts locally by **`score`** per **`ascending`**; formats plain-text blocks.
+
+**Typical fields in output:**
+
+- `[URL:]`, `[SCORE:]`, `[TAG(s):]`, `[TITLE:]`, `[SUBREEDDIT:]` *(label spelling matches current formatter)*  
+- `[AUTHOR_DESCRIPTION:]` when present  
+
+---
+
+## AI agent (`agenticRT.py`)
+
+### Role
+
+Runs a multi-turn CLI conversation backed by **`ollama.Client().chat`** with **`tools=[Update.package_update]`**. When the assistant returns **`tool_calls`**, Python invokes **`TOOL_REGISTRY[function_name](**arguments)`**. Only **`package_update`** is registered; unknown tools get an error string appended as a **`tool`** message.
+
+### Prerequisites
+
+1. **Ollama** running locally (default **`http://localhost:11434`** — used by **`is_ollama_running()`**, which probes **`GET /api/tags`**).
+2. **`ollama pull`** the model referenced in code: **`llama3.2:3b`**.
+
+*(If startup messages mention a different pull target, align them with the model string in `AgentUpdate.agent_update_conversation`; the codebase uses **`model='llama3.2:3b'`**.)*
+
+### Entry points
+
+Interactive agent from CLI:
+
+```text
+> agent-update
+```
+
+Programmatic:
+
+```python
+from PackageUpdateSearch.agenticRT import SYSTEM_PROMPT, TOOL_REGISTRY, AgentUpdate
 
 AgentUpdate.agent_update_conversation(SYSTEM_PROMPT, TOOL_REGISTRY)
+```
+
+**`agent_update_conversation`** accepts **`reset_each_query`** (`True` by default): when `True`, after each assistant turn the message list resets to **`[system, user]`** with only the latest user prompt, so older tool/results do not bleed into the next query.
+
+Helpers:
+
+```python
+from PackageUpdateSearch.agenticRT import is_ollama_running
+```
+
+```python
+from PackageUpdateSearch.agenticRT import AgentUpdate  # AgentUpdate.show_reddit_fetch_tool(messages)
+```
+
+### **`SYSTEM_PROMPT`** and modes
+
+The long **`SYSTEM_PROMPT`** constrains behavior (tool-first workflow, strict summarization schema after **`role: tool`**, anti-hallucination and Reddit-only URL rules, cycle-reset narrative). Implementation-wise, **mode selection** is enforced by **`ollama`** tool calling + your loop: assistant → optional **`tool`** messages → next assistant **`content`**.
 
 ---
 
-## API Layer
+## Tool registry
 
-### Update.package_update()
+```python
+TOOL_REGISTRY = {
+    "package_update": Update.package_update,
+}
+```
 
-Endpoint:
-
-https://releasetrain.io/api/reddit/by-subreddit
-
-Returns:
-- URL
-- Score
-- Tags
-- Title
-- Subreddit
-- Author description (if available)
+This is the authorization layer: executable tools are only those keyed here.
 
 ---
 
-## Output Format
+## Agent conversation loop (simplified)
 
-[URL:] ...
-[SCORE:] ...
-[TAG(s):] ...
-[TITLE:] ...
-[SUBREDDIT:] ...
-[AUTHOR_DESCRIPTION:] ...
-
----
-
-## Future Improvements
-
-- Add multiple tool support
-- Improve agent loop stability
-- Improve summarization formatting
-- Expand tool registry safely
-- Add streaming LLM responses
-- Improve CLI output formatting 
+1. Check **`is_ollama_running()`**; if False, print guidance and return.
+2. Read user message ( **`exit`** to quit ).
+3. **`client.chat`** with **`model='llama3.2:3b'`**, **`messages`**, **`tools=[Update.package_update]`**.
+4. Append assistant message.
+5. If **`tool_calls`**: run **`TOOL_REGISTRY`**, append **`role: tool`** content, **`continue`** (same turn can process multiple calls).
+6. Else print **`response.message.content`** (summary / reply).
+7. Prompt again; optionally reset **`messages`** if **`reset_each_query`**.
 
 ---
 
-## Design Philosophy
+## Design philosophy
 
-This project follows a controlled agent architecture:
-
-- LLM cannot execute arbitrary code
-- Python enforces strict tool access
-- All actions go through a registry layer
-- System alternates between:
-  - Tool execution
-  - Summarization
+- The LLM does not execute arbitrary Python; only **`TOOL_REGISTRY`** entries run.
+- Reddit access is mediated by **`Update.package_update`** and the ReleaseTrain endpoint.
+- The agent relies on **Ollama** as a separate service; **`ollama`** on PyPI is only the HTTP client library.
 
 ---
 
 ## Summary
 
-PackageUpdateSearch combines:
-
-- CLI tooling
-- API integration
-- Agent-based reasoning
-- Safe function execution layer
-
-It demonstrates a structured approach to building agentic Python systems.
+PackageUpdateSearch combines declarative **`pyproject.toml`** dependencies**, a ReleaseTrain-backed **`RT.Update`** helper, an **`argparse`** REPL **`app`**, and an **Ollama**-driven **`AgentUpdate`** path with **`llama3.2:3b`** and a minimal **tool registry** for bounded agent behavior.

@@ -17,7 +17,7 @@ Builds one **`ArgumentParser`** and subparsers: **`package-update`**, **`get-req
 
 ### `handle_command(parser, command_line)`
 
-Splits the user line, **`parse_args`**, and branches on **`args.command`**. Catches **`SystemExit`** from argparse so a bad line does not kill the REPL. Returns **`False`** only for **`exit`**.
+Splits the user line, **`parse_args`**, and branches on **`args.command`**. Catches **`SystemExit`** from argparse so a bad line does not kill the CLI session. Returns **`False`** only for **`exit`**.
 
 **Implemented in `handle_command` today:** **`package-update`**, **`agent-update`**, **`help`**, and a **`elif args.command == '-v'`** branch. Subparsers **`get-request`** and **`capstone`** are registered but **not** handled—those commands parse successfully and currently do nothing.
 

@@ -33,9 +33,113 @@ pip install -e ".[test]"   # optional, for tests
 python -m PackageUpdateSearch.app
 ```
 
-The REPL prints a welcome line and **`print_help()`**, then reads lines like **`> package-update ...`** until **`exit`** or Ctrl+C.
+The interactive CLI prints a welcome line and **`print_help()`**, then reads lines like **`> package-update ...`** until **`exit`** or Ctrl+C. Each line is split on whitespace for **`argparse`** (values such as **`python,programming`** for **`--q`** stay a single token after the flag).
 
-**Version:** root parser defines **`-v` / `--version`** (e.g. `python -m PackageUpdateSearch.app --version`). Inside the **`>`** loop, input is split and parsed as a single line (e.g. `package-update --limit 5`).
+**Version:** the parser supports **`-v` / `--version`**, but **`main()`** does not parse **`sys.argv`**—use the CLI session (e.g. **`> -v`**) so **`handle_command`** runs **`parse_args`** on that line.
+
+---
+
+## CLI examples (in use)
+
+Below, **`$`** is your shell; **`>`** is the PackageUpdateSearch CLI prompt.
+
+### Install and launch
+
+```bash
+$ cd /path/to/packaging_tutorial
+$ pip install -e .
+
+$ python -m PackageUpdateSearch.app
+
+===Welcome to the PackageUpdateSearch CLI!==
+
+Available commands:
+  package-update  - Fetch and format ReleaseTrain Reddit posts
+  help            - Show this help message
+  -v              - Show PackageUpdateSearch CLI version information
+  agent-update    - Start an agent conversation about Reddit updates
+  exit            - Exit the CLI
+
+ Use '<command> --help'  or '<command> --h' for more details on a specific command.
+
+>
+```
+
+### Fetch posts: `package-update`
+
+Minimal call (uses CLI defaults for **`--q`**, **`--page`**, etc.):
+
+```text
+> package-update
+[URL: ] https://www.reddit.com/r/...
+[SCORE: ] ...
+[TITLE: ] ...
+... (more blocks, or an advisory string if the API returns no rows / errors)
+```
+
+Narrow the query and limit how many posts come back:
+
+```text
+> package-update --q python,programming --limit 3 --page 1
+```
+
+Sort by score ascending (flag present → **`ascending=True`** in the CLI, which **`package_update`** maps to **`1`**):
+
+```text
+> package-update --q python --limit 5 --ascending
+```
+
+See flags for that subcommand:
+
+```text
+> package-update --help
+```
+
+### Help and version inside the CLI
+
+```text
+> help
+> -v
+```
+
+### Exit
+
+```text
+> exit
+Goodbye!
+```
+
+(or Ctrl+C at an empty prompt to exit with **“Goodbye!”**)
+
+### `agent-update` (Ollama)
+
+Starts the interactive agent (**`AgentUpdate.agent_update_conversation`**). Requires **Ollama** listening on **`http://localhost:11434`** and a pulled chat model (repo uses **`llama3.2:3b`**).
+
+```text
+> agent-update
+Ollama is running. Starting agent conversation...
+Ask the agent about any updates on Reddit related to programming or Python. Type 'exit' to quit.
+> What are people discussing in r/Python this week?
+--- All Fetched Links ---
+- https://www.reddit.com/...
+--- End of Links ---
+(Summary text from the model...)
+Ask the agent ...
+>
+```
+
+If Ollama is not running, the CLI prints startup instructions and returns to the **`>`** loop without hanging.
+
+### One-liner-style scripts (same package)
+
+Outside the interactive CLI, you can run the small examples under **`examples/`** (after **`pip install -e .`**):
+
+```bash
+$ python examples/example_package_update.py
+$ python examples/example_agent_update.py
+```
+
+These import **`PackageUpdateSearch`** the same way an end user would after **`pip install`**.
 
 ---
 
@@ -164,4 +268,4 @@ TOOL_REGISTRY = {
 
 ## Summary
 
-**`pyproject.toml`** dependencies, **`RT.Update`** + ReleaseTrain, **`app`** REPL, **`AgentUpdate`** + Ollama **`llama3.2:3b`**, optional link listing from the last tool message before the model reply.
+**`pyproject.toml`** dependencies, **`RT.Update`** + ReleaseTrain, **`app`** interactive CLI with step-by-step **CLI examples (in use)** above, **`AgentUpdate`** + Ollama **`llama3.2:3b`**, optional link listing from the last tool message before the model reply.

@@ -7,7 +7,7 @@ class Update:
 
     @staticmethod
     def package_update(
-        q : str ='programming, Python',
+        q : str ='Python',
         minScore : int =50,
         minComments : int =10,
         limit : int =25,
@@ -35,8 +35,8 @@ class Update:
             [TITLE: ] 
             [SUBREEDDIT: ] 
 
-            Some posts may also include:
-            [AUTHOR_DESCRIPTION: ]
+            [AUTHOR_DESCRIPTION: ] when a description exists; otherwise [AUTHOR_DESCRIPTION]
+            with the placeholder: No Post Description. Title and or Attachments only.
 
         Example:
             >>> from PackageUpdateSearch.RT import Update
@@ -100,7 +100,16 @@ class Update:
                             '[TITLE: ] ' + str(item.get('title', '')) + '\n' +
                             '[SUBREEDDIT: ] ' + str(item.get('subreddit', '')) + '\n'
                         )
-                        reddit_posts += '[AUTHOR_DESCRIPTION: ] ' + str(item.get('author_description', '')) + '\n\n'
+                        author_raw = item.get('author_description')
+                        if author_raw is None or author_raw == '':
+                            reddit_posts += (
+                                '[AUTHOR_DESCRIPTION] '
+                                + 'No Post Description. Title and or Attachments only.\n\n'
+                            )
+                        else:
+                            reddit_posts += (
+                                '[AUTHOR_DESCRIPTION: ] ' + str(author_raw) + '\n\n'
+                            )
                     except Exception:
                         reddit_posts += '\n'
                         continue
